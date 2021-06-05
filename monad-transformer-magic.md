@@ -33,7 +33,16 @@ This is all well and good, but we've performed an eager evaluation here and caus
 Let's fix that by wrapping things in the `IO[_]` monad.
 
 We'll also pretend our function performs some side effects in order to compute our `maybeInt` value.
-We don't want to eagerly evaluate these now, so we'll wrap in an IO.
+We don't want to eagerly evaluate these now, so we'll wrap in an `IO`.
+
+First we need to import the IO monad from the Cats Effect library:
+
+```scala
+import cats.effect.IO
+//  import cats.effect.IO
+```
+
+You can find out more about the Cats Effect `IO` monad [in their docs](https://typelevel.org/cats-effect/docs/2.x/datatypes/io).
 
 ```scala
 def maybeIntPure(x: Int): IO[Either[Throwable, Int]] = {
@@ -59,7 +68,15 @@ val myInts = for {
 
 Eek, that's not a very helpful type we've got back. We've lost our fast-fail ability that means we only get one `Either[...]` back at the end. This would be a pain to pattern match against!
 
-Okay, so let's try using the `tupled` function from `Applicative` to combine our result to only have one `Either[...]`.
+Okay, so let's try using the [tupled](https://www.scalawithcats.com/dist/scala-with-cats.html#apply-syntax) function from [Semigroupal](https://www.scalawithcats.com/dist/scala-with-cats.html#sec:applicatives) to combine our result to only have one `Either[...]`.
+This comes from the [Cats library](https://typelevel.org/cats/resources_for_learners.html).
+
+We'll need to do some imports first:
+
+```scala
+import cats.implicits._
+// import cats.implicits._
+```
 
 ```scala
 val myInts = for {
@@ -99,12 +116,22 @@ val myInts = for {
 // Compilation Failed
 ```
 
-Oh dear. Because the return type of `maybeIntPure` is `IO[Either[Throwable, Int]]`, the result of the `flatMap`s that happen in the for comprehension are `Either[Throwable, Int]`.
+Oh dear.
+
+Because the return type of `maybeIntPure` is `IO[Either[Throwable, Int]]`, the result of the `flatMap`s that happen in the for comprehension are `Either[Throwable, Int]`.
 In other words, the `x` in `x <- maybeIntPure(1)` is of type `Either[Throwable, Int]`, not `Int`.
 
-This is bad because it means we can no longer pass `x` into the next function to get `y`.
+This is bad because it means we can no longer pass `x` into the next function to get `y`.  
+So what to do? - Enter monad transformers!
 
-So what to do? - Enter Monad transformers!
+We're going to be using a monad transformer from the Cats library, so let's import it:
+
+```scala
+import cats.data.EitherT
+// import cats.data.EitherT
+```
+
+Let's use it to wrap our `Either[Throwable, Int]` from before:
 
 ```scala
 val myIOMaybeInt = EitherT(maybeIntPure(1))
